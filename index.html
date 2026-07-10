@@ -1,107 +1,238 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Logger</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; background: #f5f7fb; padding: 20px; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); max-width: 450px; margin: 20px auto; }
-        h3 { margin-top: 0; color: #1a73e8; font-size: 20px; }
-        label { display: block; margin: 12px 0 6px; font-weight: bold; font-size: 14px; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; margin-bottom: 10px; }
-        textarea { height: 80px; resize: none; }
-        .btn { background: #1a73e8; color: white; border: none; padding: 14px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; -webkit-appearance: none; margin-bottom: 10px; }
-        .btn:active { background: #1557b0; }
-        .btn-sec { background: #5f6368; }
-        .btn-sec:active { background: #3c4043; }
-        .tray { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px dashed #ccc; margin-bottom: 15px; }
-        .con { background: #202124; color: #f1f3f4; font-family: monospace; font-size: 11px; padding: 12px; border-radius: 6px; height: 130px; overflow-y: auto; margin-top: 15px; line-height: 1.4; }
-        .err { color: #f28b82; }
-        .ok { color: #81c995; }
-        .inf { color: #8ab4f8; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Universal Logger</title>
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for JSX transformation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Enable dark mode class strategy
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {} },
+    };
+  </script>
 </head>
-<body>
-    <div class="card">
-        <h3>Universal Logger</h3>
-        <div class="tray">
-            <label>Webhook URL:</label>
-            <input type="text" id="url" placeholder="https://script.google.com/macros/s/.../exec">
-            <label>Telegram Chat ID:</label>
-            <input type="text" id="cid" placeholder="e.g., 235221921">
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      // Core state
+      const [url, setUrl] = useState(localStorage.getItem('tg_url') || '');
+      const [cid, setCid] = useState(localStorage.getItem('tg_cid') || '');
+      const [msg, setMsg] = useState('Hello from iPhone mobile hardware!');
+      const [logs, setLogs] = useState([]);
+      const [dark, setDark] = useState(false);
+      const [tab, setTab] = useState('input'); // settings | input | log
+
+      // Helper to push a log entry
+      const addLog = (text, kind) => {
+        setLogs(prev => [...prev, { text, kind }]);
+      };
+
+      // Initial environment log
+      useEffect(() => {
+        addLog('Environment Secure Context: ' + window.isSecureContext, 'info');
+        if (url && cid) addLog('Saved parameters loaded. Ready.', 'success');
+      }, []);
+
+      // Dark mode side‑effect
+      useEffect(() => {
+        document.documentElement.classList.toggle('dark', dark);
+      }, [dark]);
+
+      // Persist helpers
+      const saveUrl = val => {
+        const trimmed = val.trim();
+        setUrl(trimmed);
+        localStorage.setItem('tg_url', trimmed);
+        addLog('Webhook URL saved.', 'success');
+      };
+
+      const saveCid = val => {
+        const trimmed = val.trim();
+        setCid(trimmed);
+        localStorage.setItem('tg_cid', trimmed);
+        addLog('Chat ID saved.', 'success');
+      };
+
+      // GPS test (used from Input tab)
+      const testGPS = () => {
+        addLog('Testing location acquisition...', 'info');
+        if (!navigator.geolocation) {
+          addLog('Hardware Error: Geolocation offline.', 'error');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          p => addLog('SUCCESS! Coordinates: ' + p.coords.latitude + ',' + p.coords.longitude, 'success'),
+          e => addLog('Hardware Failed. Error Code: ' + e.code + ' - ' + e.message, 'error')
+        );
+      };
+
+      // Send message with optional GPS location
+      const send = () => {
+        const target = url || document.getElementById('url').value.trim();
+        const chatId = cid || document.getElementById('cid').value.trim();
+        if (!target || !chatId) {
+          addLog('Aborted: Check configuration fields.', 'error');
+          return;
+        }
+        addLog('Requesting GPS tracking telemetry...', 'info');
+        navigator.geolocation.getCurrentPosition(
+          p => {
+            const lat = p.coords.latitude;
+            const lon = p.coords.longitude;
+            addLog('GPS Lock: ' + lat + ',' + lon, 'success');
+            const link = `https://maps.google.com/?q=${lat},${lon}`;
+            const txt = msg + `\n\n📍 Location: ${link}`;
+            post(target, chatId, txt);
+          },
+          () => {
+            addLog('GPS failed. Sending text fallback configuration...', 'error');
+            post(target, chatId, msg);
+          }
+        );
+      };
+
+      // Helper to POST data to the webhook
+      const post = (target, chatId, txt) => {
+        addLog('Transmitting asynchronous data dispatch...', 'info');
+        fetch(target, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: { text: txt, chat: { id: Number(chatId) } } })
+        })
+          .then(() => addLog('Phase complete: Transmission accepted!', 'success'))
+          .catch(err => addLog('Network block: ' + err.message, 'error'));
+      };
+
+      // Render helpers for each tab
+      const SettingsTab = () => (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Webhook URL</label>
+            <input
+              id="url"
+              type="text"
+              placeholder="https://script.google.com/macros/s/.../exec"
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              onBlur={e => saveUrl(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Telegram Chat ID</label>
+            <input
+              id="cid"
+              type="text"
+              placeholder="e.g., 235221921"
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              value={cid}
+              onChange={e => setCid(e.target.value)}
+              onBlur={e => saveCid(e.target.value)}
+            />
+          </div>
         </div>
-        <label>Message Text:</label>
-        <textarea id="msg">Hello from iPhone mobile hardware!</textarea>
-        <button class="btn" onclick="send()">Post Message & Location</button>
-        <button class="btn btn-sec" onclick="testGPS()">Test Location Lock Only</button>
-        <div class="con" id="con"></div>
+      );
+
+      const InputTab = () => (
+  <div className="space-y-4">
+    <div>
+      <label className="block text-sm font-medium mb-1">Message Text</label>
+      <div className="flex items-center">
+        <textarea
+          id="msg"
+          rows={3}
+          className="flex-1 w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
+          value={msg}
+          onChange={e => setMsg(e.target.value)}
+        />
+        <button
+          title="Clear text"
+          className="ml-2 text-gray-500 hover:text-gray-800"
+          onClick={() => setMsg('')}
+        >
+          &#x274C;
+        </button>
+      </div>
     </div>
+    <div className="flex space-x-2">
+      <button
+        className="flex-1 bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition"
+        onClick={send}
+      >
+        Post Message &amp; Location
+      </button>
+    </div>
+  </div>
+);
 
-    <script>
-        var uIn = document.getElementById('url'), cIn = document.getElementById('cid'), mIn = document.getElementById('msg'), cBox = document.getElementById('con');
-        
-        function log(m, t) {
-            var d = document.createElement('div');
-            if (t) d.className = t;
-            d.innerText = '[' + new Date().toTimeString().split(' ')[0] + '] ' + m;
-            cBox.appendChild(d);
-            cBox.scrollTop = cBox.scrollHeight;
-        }
+      const LogTab = () => (
+  <div className="space-y-2">
+    <button
+      className="bg-gray-600 text-white py-1 px-3 rounded hover:bg-gray-700 transition"
+      onClick={testGPS}
+    >
+      Test Location Only
+    </button>
+    <div className="max-h-64 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs space-y-1">
+      {logs.map((l, i) => (
+        <div key={i} className={
+          l.kind === 'error' ? 'text-red-500' :
+          l.kind === 'success' ? 'text-green-500' :
+          l.kind === 'info' ? 'text-blue-400' : ''
+        }>
+          [{new Date().toLocaleTimeString()}] {l.text}
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
-        window.onload = function() {
-            log('Environment Secure Context: ' + window.isSecureContext, 'inf');
-            var sU = localStorage.getItem('tg_url'), sC = localStorage.getItem('tg_cid');
-            if (sU) uIn.value = sU;
-            if (sC) cIn.value = sC;
-            if (sU && sC) log('Saved parameters loaded. Ready.', 'ok');
-        };
+      return (
+        <div className="max-w-lg mx-auto p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold text-indigo-600 dark:text-indigo-400">Universal Logger</h2>
+            <button className="text-sm text-gray-500" onClick={() => setDark(!dark)}>
+              {dark ? 'Light' : 'Dark'} Mode
+            </button>
+          </div>
 
-        uIn.onchange = function() { localStorage.setItem('tg_url', uIn.value.trim()); log('Webhook URL saved.', 'ok'); };
-        cIn.onchange = function() { localStorage.setItem('tg_cid', cIn.value.trim()); log('Chat ID saved.', 'ok'); };
+          {/* Tab navigation */}
+          <nav className="flex space-x-4 border-b pb-2 mb-4">
+            {['input', 'settings', 'log'].map(name => (
+              <button
+                key={name}
+                className={`px-3 py-1 rounded-t ${tab === name ? 'bg-white dark:bg-gray-800 border-t border-l border-r border-b-0 text-indigo-600' : 'text-gray-600 hover:text-indigo-600'}`}
+                onClick={() => setTab(name)}
+              >
+                {name.charAt(0).toUpperCase() + name.slice(1)}
+              </button>
+            ))}
+          </nav>
 
-        function testGPS() {
-            log('Testing location acquisition...', 'inf');
-            if (!navigator.geolocation) { log('Hardware Error: Geolocation offline.', 'err'); return; }
-            
-            navigator.geolocation.getCurrentPosition(function(p) {
-                log('SUCCESS! Coordinates: ' + p.coords.latitude + ',' + p.coords.longitude, 'ok');
-            }, function(e) {
-                log('Hardware Failed. Error Code: ' + e.code + ' - ' + e.message, 'err');
-            });
-        }
+          {/* Tab content */}
+          <div className="pt-2">
+            {tab === 'settings' && <SettingsTab />}
+            {tab === 'input' && <InputTab />}
+            {tab === 'log' && <LogTab />}
+          </div>
+        </div>
+      );
+    }
 
-        function send() {
-            var target = localStorage.getItem('tg_url') || uIn.value.trim(),
-                chatId = localStorage.getItem('tg_cid') || cIn.value.trim();
-            if (!target || !chatId) { log('Aborted: Check configuration fields.', 'err'); return; }
-
-            log('Requesting GPS tracking telemetry...', 'inf');
-            navigator.geolocation.getCurrentPosition(function(p) {
-                var lat = p.coords.latitude, lon = p.coords.longitude;
-                log('GPS Lock: ' + lat + ',' + lon, 'ok');
-                var link = "https://maps.google.com/?q=" + lat + "," + lon;
-                var txt = mIn.value + "\n\n📍 Location: " + link;
-                post(target, chatId, txt);
-            }, function(e) {
-                log('GPS failed. Sending text fallback configuration...', 'err');
-                post(target, chatId, mIn.value);
-            });
-        }
-
-        function post(target, chatId, txt) {
-            log('Transmitting asynchronous data dispatch...', 'inf');
-            fetch(target, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: { text: txt, chat: { id: Number(chatId) } } })
-            }).then(function() {
-                log('Phase complete: Transmission accepted!', 'ok');
-            }).catch(function(err) {
-                log('Network block: ' + err.message, 'err');
-            });
-        }
-    </script>
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
 </body>
 </html>
