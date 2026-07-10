@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TG Dispatcher</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f5f7fb; padding: 20px; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); max-width: 450px; margin: 20px auto; }
+        h3 { margin-top: 0; color: #1a73e8; font-size: 20px; }
+        label { display: block; margin: 12px 0 6px; font-weight: bold; font-size: 14px; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; margin-bottom: 10px; }
+        textarea { height: 80px; resize: none; }
+        .btn { background: #1a73e8; color: white; border: none; padding: 14px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; -webkit-appearance: none; margin-bottom: 10px; }
+        .btn:active { background: #1557b0; }
+        .btn-sec { background: #5f6368; }
+        .btn-sec:active { background: #3c4043; }
+        .tray { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px dashed #ccc; margin-bottom: 15px; }
+        .con { background: #202124; color: #f1f3f4; font-family: monospace; font-size: 11px; padding: 12px; border-radius: 6px; height: 130px; overflow-y: auto; margin-top: 15px; line-height: 1.4; }
+        .err { color: #f28b82; }
+        .ok { color: #81c995; }
+        .inf { color: #8ab4f8; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>Telegram Dispatcher</h3>
+        <div class="tray">
+            <label>Webhook URL:</label>
+            <input type="text" id="url" placeholder="https://script.google.com/macros/s/.../exec">
+            <label>Telegram Chat ID:</label>
+            <input type="text" id="cid" placeholder="e.g., 235221921">
+        </div>
+        <label>Message Text:</label>
+        <textarea id="msg">Hello from iPhone mobile hardware!</textarea>
+        <button class="btn" onclick="send()">Post Message & Location</button>
+        <button class="btn btn-sec" onclick="testGPS()">Test Location Lock Only</button>
+        <div class="con" id="con"></div>
+    </div>
+
+    <script>
+        var uIn = document.getElementById('url'), cIn = document.getElementById('cid'), mIn = document.getElementById('msg'), cBox = document.getElementById('con');
+        
+        function log(m, t) {
+            var d = document.createElement('div');
+            if (t) d.className = t;
+            d.innerText = '[' + new Date().toTimeString().split(' ')[0] + '] ' + m;
+            cBox.appendChild(d);
+            cBox.scrollTop = cBox.scrollHeight;
+        }
+
+        window.onload = function() {
+            log('Environment Secure Context: ' + window.isSecureContext, 'inf');
+            var sU = localStorage.getItem('tg_url'), sC = localStorage.getItem('tg_cid');
+            if (sU) uIn.value = sU;
+            if (sC) cIn.value = sC;
+            if (sU && sC) log('Saved parameters loaded. Ready.', 'ok');
+        };
+
+        uIn.onchange = function() { localStorage.setItem('tg_url', uIn.value.trim()); log('Webhook URL saved.', 'ok'); };
+        cIn.onchange = function() { localStorage.setItem('tg_cid', cIn.value.trim()); log('Chat ID saved.', 'ok'); };
+
+        function testGPS() {
+            log('Testing location acquisition...', 'inf');
+            if (!navigator.geolocation) { log('Hardware Error: Geolocation offline.', 'err'); return; }
+            
+            navigator.geolocation.getCurrentPosition(function(p) {
+                log('SUCCESS! Coordinates: ' + p.coords.latitude + ',' + p.coords.longitude, 'ok');
+            }, function(e) {
+                log('Hardware Failed. Error Code: ' + e.code + ' - ' + e.message, 'err');
+            });
+        }
+
+        function send() {
+            var target = localStorage.getItem('tg_url') || uIn.value.trim(),
+                chatId = localStorage.getItem('tg_cid') || cIn.value.trim();
+            if (!target || !chatId) { log('Aborted: Check configuration fields.', 'err'); return; }
+
+            log('Requesting GPS tracking telemetry...', 'inf');
+            navigator.geolocation.getCurrentPosition(function(p) {
+                var lat = p.coords.latitude, lon = p.coords.longitude;
+                log('GPS Lock: ' + lat + ',' + lon, 'ok');
+                var link = "https://maps.google.com/?q=" + lat + "," + lon;
+                var txt = mIn.value + "\n\n📍 Location: " + link;
+                post(target, chatId, txt);
+            }, function(e) {
+                log('GPS failed. Sending text fallback configuration...', 'err');
+                post(target, chatId, mIn.value);
+            });
+        }
+
+        function post(target, chatId, txt) {
+            log('Transmitting asynchronous data dispatch...', 'inf');
+            fetch(target, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: { text: txt, chat: { id: Number(chatId) } } })
+            }).then(function() {
+                log('Phase complete: Transmission accepted!', 'ok');
+            }).catch(function(err) {
+                log('Network block: ' + err.message, 'err');
+            });
+        }
+    </script>
+</body>
+</html>
