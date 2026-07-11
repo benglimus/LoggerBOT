@@ -178,6 +178,7 @@ function App() {
             className="flex-1 w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
             value={msg}
             onChange={e => setMsg(e.target.value)}
+            onInput={e => setMsg(e.target.value)}
           />
           <button
             title="Clear text"
