@@ -1,4 +1,4 @@
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 function App() {
   // Core state
@@ -11,6 +11,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [loadingLabel, setLoadingLabel] = useState('');
   const [toast, setToast] = useState(null);
+  const msgRef = useRef(null);
 
   // Helper to push a log entry
   const addLog = (text, kind) => {
@@ -173,11 +174,12 @@ function App() {
         <label className="block text-sm font-medium mb-1">Message Text</label>
         <div className="flex items-center">
           <textarea
+            ref={msgRef}
             id="msg"
             rows={3}
             className="flex-1 w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
             value={msg}
-            onInput={e => setMsg(e.target.value)}
+            onChange={e => setMsg(e.target.value)}
           />
           <button
             title="Clear text"
