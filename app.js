@@ -104,6 +104,125 @@ const InputTab = ({ msg, setMsg, send, loading, loadingLabel, selectedFile, setS
   );
 };
 
+// Categories tab component
+const CategoriesTab = ({ categories, fetchCategories, createCategory, updateCategory, loading }) => {
+  const [form, setForm] = useState({ name: '', value: '', desc: '', status: 'Active' });
+  const [editing, setEditing] = useState(null);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (editing) {
+      updateCategory(editing.value, form);
+      setEditing(null);
+    } else {
+      createCategory(form);
+    }
+    setForm({ name: '', value: '', desc: '', status: 'Active' });
+  };
+
+  const handleEdit = (c) => {
+    setEditing(c);
+    setForm({ name: c.name, value: c.value, desc: c.desc, status: c.status });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Add / Edit Form */}
+      <form onSubmit={handleSubmit} className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 space-y-3">
+        <h3 className="font-semibold text-sm">{editing ? 'Edit Category' : 'Create Category'}</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            placeholder="Name (e.g. Work)"
+            className="px-2 py-1 border rounded text-sm focus:outline-indigo-600 bg-white dark:bg-gray-800"
+            value={form.name}
+            onChange={e => setForm({...form, name: e.target.value})}
+            required
+          />
+          <input
+            placeholder="Value (e.g. work)"
+            className="px-2 py-1 border rounded text-sm focus:outline-indigo-600 bg-white dark:bg-gray-800"
+            value={form.value}
+            onChange={e => setForm({...form, value: e.target.value})}
+            disabled={!!editing}
+            required
+          />
+        </div>
+        <input
+          placeholder="Description"
+          className="w-full px-2 py-1 border rounded text-sm focus:outline-indigo-600 bg-white dark:bg-gray-800"
+          value={form.desc}
+          onChange={e => setForm({...form, desc: e.target.value})}
+        />
+        <div className="flex justify-between items-center">
+          <select
+            className="px-2 py-1 border rounded text-sm bg-white dark:bg-gray-800"
+            value={form.status}
+            onChange={e => setForm({...form, status: e.target.value})}
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+          <div className="space-x-1">
+            {editing && (
+              <button
+                type="button"
+                className="px-3 py-1 bg-gray-300 rounded text-sm hover:bg-gray-400 text-gray-800"
+                onClick={() => { setEditing(null); setForm({ name: '', value: '', desc: '', status: 'Active' }); }}
+              >
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700">
+              {editing ? 'Update' : 'Add'}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* Categories List */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold text-sm">Existing Categories</h3>
+          <button type="button" onClick={fetchCategories} className="text-xs text-indigo-600 hover:underline">🔄 Refresh</button>
+        </div>
+        
+        {loading ? (
+          <div className="text-sm text-gray-500">Loading categories...</div>
+        ) : categories.length === 0 ? (
+          <div className="text-sm text-gray-500">No categories found.</div>
+        ) : (
+          <div className="divide-y border rounded-lg bg-white dark:bg-gray-800 max-h-60 overflow-y-auto">
+            {categories.map((c) => (
+              <div key={c.value} className="p-3 flex justify-between items-center text-sm">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium">{c.name}</span>
+                    <span className="text-xs text-gray-400">({c.value})</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${c.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {c.status}
+                    </span>
+                  </div>
+                  {c.desc && <p className="text-xs text-gray-500 mt-0.5">{c.desc}</p>}
+                </div>
+                <div className="flex space-x-2">
+                  <button type="button" onClick={() => handleEdit(c)} className="text-xs text-blue-600 hover:underline">Edit</button>
+                  <button 
+                    type="button"
+                    onClick={() => updateCategory(c.value, { ...c, status: c.status === 'Active' ? 'Inactive' : 'Active' })}
+                    className="text-xs text-gray-500 hover:underline"
+                  >
+                    Toggle
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const LogTab = ({ logs, testGPS, loading, loadingLabel }) => (
   <div className="space-y-2">
     <button
@@ -144,7 +263,7 @@ const SettingsTab = ({ url, setUrl, cid, setCid, saveUrl, saveCid, loading, load
       <input
         id="url"
         type="text"
-        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
+        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white dark:bg-gray-800"
         value={url}
         onChange={e => setUrl(e.target.value)}
         placeholder="https://example.com/webhook"
@@ -155,7 +274,7 @@ const SettingsTab = ({ url, setUrl, cid, setCid, saveUrl, saveCid, loading, load
       <input
         id="cid"
         type="text"
-        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
+        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white dark:bg-gray-800"
         value={cid}
         onChange={e => setCid(e.target.value)}
         placeholder="123456789"
@@ -183,7 +302,7 @@ function App() {
   const [msg, setMsg] = useState('Hello from iPhone mobile hardware!');
   const [logs, setLogs] = useState([]);
   const [dark, setDark] = useState(false);
-  const [tab, setTab] = useState('input'); // settings | input | log
+  const [tab, setTab] = useState('input'); // settings | input | log | categories
   const [menuOpen, setMenuOpen] = useState(false); // hamburger menu state
   const [loading, setLoading] = useState(false);
   const [loadingLabel, setLoadingLabel] = useState('');
@@ -192,6 +311,9 @@ function App() {
   // File upload state
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+
+  // Categories list state
+  const [categories, setCategories] = useState([]);
 
   // Helper to push a log entry
   const addLog = (text, kind) => {
@@ -243,6 +365,129 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Fetch Categories list
+  const fetchCategories = async () => {
+    setLoading(true);
+    setLoadingLabel('Loading categories');
+    const target = url || (document.getElementById('url') ? document.getElementById('url').value.trim() : '');
+    const chatId = cid || (document.getElementById('cid') ? document.getElementById('cid').value.trim() : '');
+    if (!target) {
+      addLog('Aborted: Check Webhook URL in settings.', 'error');
+      setLoading(false);
+      setLoadingLabel('');
+      return;
+    }
+    
+    const fetchUrl = `${target}${target.includes('?') ? '&' : '?'}endpoint=getCategories&chatId=${chatId}`;
+    try {
+      const response = await fetch(fetchUrl);
+      const data = await response.json();
+      if (data && data.status === 'error') {
+        addLog(`Error loading categories: ${data.message}`, 'error');
+      } else if (Array.isArray(data)) {
+        setCategories(data);
+        addLog('Categories loaded successfully.', 'success');
+      } else {
+        addLog('Error: Invalid response format.', 'error');
+      }
+    } catch (err) {
+      addLog(`Network error: ` + err.message, 'error');
+    } finally {
+      setLoading(false);
+      setLoadingLabel('');
+    }
+  };
+
+  // Create Category
+  const createCategory = async (cat) => {
+    setLoading(true);
+    setLoadingLabel('Creating category');
+    const target = url || (document.getElementById('url') ? document.getElementById('url').value.trim() : '');
+    const chatId = cid || (document.getElementById('cid') ? document.getElementById('cid').value.trim() : '');
+    if (!target) {
+      addLog('Aborted: Check Webhook URL in settings.', 'error');
+      setLoading(false);
+      setLoadingLabel('');
+      return;
+    }
+    
+    try {
+      const response = await fetch(target, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          endpoint: 'createCategory',
+          chatId: chatId,
+          name: cat.name,
+          value: cat.value,
+          desc: cat.desc,
+          status: cat.status
+        })
+      });
+      const data = await response.json();
+      if (data && data.status === 'success') {
+        addLog('Category created successfully.', 'success');
+        fetchCategories();
+      } else {
+        addLog(`Failed to create category: ${data.message || 'Unknown error'}`, 'error');
+      }
+    } catch (err) {
+      addLog(`Network error creating category: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+      setLoadingLabel('');
+    }
+  };
+
+  // Update / Soft-delete Category
+  const updateCategory = async (origVal, cat) => {
+    setLoading(true);
+    setLoadingLabel('Updating category');
+    const target = url || (document.getElementById('url') ? document.getElementById('url').value.trim() : '');
+    const chatId = cid || (document.getElementById('cid') ? document.getElementById('cid').value.trim() : '');
+    if (!target) {
+      addLog('Aborted: Check Webhook URL in settings.', 'error');
+      setLoading(false);
+      setLoadingLabel('');
+      return;
+    }
+    
+    try {
+      const response = await fetch(target, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          endpoint: 'updateCategory',
+          chatId: chatId,
+          originalValue: origVal,
+          name: cat.name,
+          value: cat.value,
+          desc: cat.desc,
+          status: cat.status
+        })
+      });
+      const data = await response.json();
+      if (data && data.status === 'success') {
+        addLog('Category updated successfully.', 'success');
+        fetchCategories();
+      } else {
+        addLog(`Failed to update category: ${data.message || 'Unknown error'}`, 'error');
+      }
+    } catch (err) {
+      addLog(`Network error updating category: ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+      setLoadingLabel('');
+    }
+  };
+
+  // Fetch categories list on tab enter
+  useEffect(() => {
+    if (tab === 'categories') {
+      fetchCategories();
+    }
+  }, [tab]);
 
   // GPS test (used from Input tab)
   const testGPS = async () => {
@@ -353,6 +598,12 @@ function App() {
               </button>
               <button
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium"
+                onClick={() => { setTab('categories'); setMenuOpen(false); }}
+              >
+                Categories
+              </button>
+              <button
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium"
                 onClick={() => { setTab('settings'); setMenuOpen(false); }}
               >
                 Settings
@@ -382,6 +633,15 @@ function App() {
             setSelectedFile={setSelectedFile}
             imagePreview={imagePreview}
             setImagePreview={setImagePreview}
+          />
+        )}
+        {tab === 'categories' && (
+          <CategoriesTab
+            categories={categories}
+            fetchCategories={fetchCategories}
+            createCategory={createCategory}
+            updateCategory={updateCategory}
+            loading={loading}
           />
         )}
         {tab === 'log' && <LogTab logs={logs} testGPS={testGPS} loading={loading} loadingLabel={loadingLabel} />}

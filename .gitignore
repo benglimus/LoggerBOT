@@ -5,3 +5,4 @@ code.gs
 .DS_Store
 picture_upload_plan.md
 enable_picture_upload_plan.md
+.env

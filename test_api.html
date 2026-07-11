@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoggerBOT API Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto space-y-8">
+        <header class="text-center">
+            <h1 class="text-3xl font-bold text-indigo-600">LoggerBOT API Tester</h1>
+            <p class="text-gray-500">Test your Google Apps Script endpoints</p>
+        </header>
+
+        <!-- Configuration Section -->
+        <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
+            <h2 class="text-xl font-semibold border-b pb-2">1. Configuration</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Webhook URL</label>
+                    <input id="webhookUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec" value="{{WEBHOOK_URL}}" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Authorized Chat ID</label>
+                    <input id="chatId" type="text" placeholder="123456789" value="{{CHAT_ID}}" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Command Section -->
+            <div class="space-y-6">
+                <!-- GET Categories -->
+                <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
+                    <h2 class="text-lg font-semibold text-indigo-500">Get Categories</h2>
+                    <p class="text-xs text-gray-500">Fetch all existing categories.</p>
+                    <button onclick="runGetCategories()" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">Run GET</button>
+                </section>
+
+                <!-- CREATE Category -->
+                <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
+                    <h2 class="text-lg font-semibold text-green-500">Create Category</h2>
+                    <div class="space-y-2">
+                        <input id="createName" type="text" placeholder="Name (e.g. Work)" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <input id="createValue" type="text" placeholder="Value (e.g. work)" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <input id="createDesc" type="text" placeholder="Description" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <select id="createStatus" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                        <button onclick="runCreateCategory()" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition text-sm">Run CREATE</button>
+                    </div>
+                </section>
+
+                <!-- UPDATE Category -->
+                <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
+                    <h2 class="text-lg font-semibold text-blue-500">Update Category</h2>
+                    <div class="space-y-2">
+                        <input id="updateOrigVal" type="text" placeholder="Original Value (ID)" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <input id="updateName" type="text" placeholder="New Name (optional)" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <input id="updateVal" type="text" placeholder="New Value (optional)" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <input id="updateDesc" type="text" placeholder="New Description (optional)" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <select id="updateStatus" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                        <button onclick="runUpdateCategory()" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition text-sm">Run UPDATE</button>
+                    </div>
+                </section>
+
+                <!-- DELETE (Soft) Category -->
+                <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
+                    <h2 class="text-lg font-semibold text-red-500">Delete (Soft) Category</h2>
+                    <div class="space-y-2">
+                        <input id="deleteVal" type="text" placeholder="Value to Deactivate" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm">
+                        <button onclick="runDeleteCategory()" class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 transition text-sm">Run DELETE</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Results Section -->
+            <div class="space-y-6">
+                <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-full flex flex-col">
+                    <h2 class="text-xl font-semibold border-b pb-2 mb-4">Response Console</h2>
+                    <pre id="console" class="flex-1 bg-black text-green-400 p-4 rounded overflow-auto text-xs font-mono min-h-[400px] whitespace-pre-wrap">Waiting for request...</pre>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const getConfig = () => ({
+            url: document.getElementById('webhookUrl').value.trim(),
+            chatId: document.getElementById('chatId').value.trim()
+        });
+
+        const log = (msg, isError = false) => {
+            const consoleEl = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = isError ? 'text-red-400' : 'text-green-400';
+            const newLine = `<span class="${colorClass}">[${timestamp}] ${msg}</span>\\n`;
+
+            if (consoleEl.innerText === 'Waiting for request...') {
+                consoleEl.innerHTML = '';
+            }
+            consoleEl.innerHTML += newLine;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        };
+
+        const request = async (endpoint, body = null) => {
+            const { url, chatId } = getConfig();
+            if (!url) {
+                log('Error: No Webhook URL provided', true);
+                return;
+            }
+
+            let finalUrl = url;
+            let method = 'POST';
+            let options = { method };
+
+            if (endpoint === 'getCategories') {
+                method = 'GET';
+                finalUrl += (url.includes('?') ? '&' : '?') + `endpoint=getCategories&chatId=${chatId}`;
+                options = { method };
+            } else {
+                // GAS CORS workaround: use text/plain for POST
+                options.headers = { 'Content-Type': 'text/plain' };
+                const payload = {
+                    endpoint,
+                    chatId,
+                    ...body
+                };
+                options.body = JSON.stringify(payload);
+            }
+
+            log(`Executing ${method} ${endpoint}...`);
+
+            try {
+                const response = await fetch(finalUrl, options);
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    data = text;
+                }
+                log(`Response: ${JSON.stringify(data, null, 2)}`);
+                return data;
+            } catch (err) {
+                log(`Fetch Error: ${err.message}`, true);
+                console.error(err);
+            }
+        };
+
+        async function runGetCategories() {
+            await request('getCategories');
+        }
+
+        async function runCreateCategory() {
+            const body = {
+                name: document.getElementById('createName').value,
+                value: document.getElementById('createValue').value,
+                desc: document.getElementById('createDesc').value,
+                status: document.getElementById('createStatus').value
+            };
+            if (!body.name || !body.value) {
+                log('Error: Name and Value are required', true);
+                return;
+            }
+            await request('createCategory', body);
+        }
+
+        async function runUpdateCategory() {
+            const body = {
+                originalValue: document.getElementById('updateOrigVal').value,
+                name: document.getElementById('updateName').value || undefined,
+                value: document.getElementById('updateVal').value || undefined,
+                desc: document.getElementById('updateDesc').value || undefined,
+                status: document.getElementById('updateStatus').value
+            };
+            if (!body.originalValue) {
+                log('Error: Original Value is required', true);
+                return;
+            }
+            await request('updateCategory', body);
+        }
+
+        async function runDeleteCategory() {
+            const val = document.getElementById('deleteVal').value;
+            if (!val) {
+                log('Error: Value is required', true);
+                return;
+            }
+            await request('deleteCategory', { value: val });
+        }
+    </script>
+</body>
+</html>
