@@ -132,7 +132,7 @@ function App() {
           type="text"
           className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
           value={url}
-          onChange={e => setUrl(e.target.value)}
+          onInput={e => setUrl(e.target.value)}
           onBlur={e => saveUrl(e.target.value)}
           placeholder="https://example.com/webhook"
         />
@@ -144,7 +144,7 @@ function App() {
           type="text"
           className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-600"
           value={cid}
-          onChange={e => setCid(e.target.value)}
+          onInput={e => setCid(e.target.value)}
           onBlur={e => saveCid(e.target.value)}
           placeholder="123456789"
         />
