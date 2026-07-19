@@ -478,7 +478,12 @@ const { useState, useEffect, useRef } = React;
 
     // Categories list state
     const [categories, setCategories] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState(localStorage.getItem('last_category') || '');
+
+    // Persist selected category to localStorage so it survives page reloads
+    useEffect(() => {
+      localStorage.setItem('last_category', selectedCategory || '');
+    }, [selectedCategory]);
 
     // Helper to push a log entry
     const addLog = (text, kind) => {
@@ -749,7 +754,6 @@ const { useState, useEffect, useRef } = React;
           addLog('Phase complete: Transmission accepted!', 'success');
           setSelectedFile(null);
           setImagePreview(null);
-          setSelectedCategory('');
         })
         .catch(err => addLog('Network error: ' + err.message, 'error'));
     };
