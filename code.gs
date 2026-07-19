@@ -40,6 +40,101 @@ function TEST_getRandomThought() {
   console.log(getRandomThought())
 }
 
+// Test verifyPassword with simulated GET and POST requests
+// Run from Scripts editor → Results show in Execution transcript + debug sheet
+function TEST_verifyPassword() {
+  // Clear old logs
+  clearDebug();
+
+  // Helper: compute SHA-256 hex string for a plaintext password
+  function sha256hex(text) {
+    const d = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text);
+    return Array.from(new Uint8Array(d)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Read the actual stored PWD from Config sheet
+  const configSheet = SpreadsheetApp.getActive().getSheetByName('Config');
+  let expectedPw = null;
+  if (configSheet) {
+    const vals = configSheet.getDataRange().getValues();
+    for (let i = 0; i < vals.length; i++) {
+      if (String(vals[i][0]) === 'PWD') {
+        expectedPw = String(vals[i][1]);
+        break;
+      }
+    }
+  }
+
+  const correctHash = expectedPw ? sha256hex(expectedPw) : null;
+  let passed = 0, failed = 0;
+
+  function assert(testName, actual, expected) {
+    const ok = actual === expected;
+    if (ok) { passed++; } else { failed++; }
+    const status = ok ? 'PASS' : 'FAIL';
+    const msg = `[${status}] ${testName} — expected=${expected}, got=${actual}`;
+    console.log(msg);
+    debugLog(msg);
+  }
+
+  debugLog('=== TEST_verifyPassword START ===');
+  console.log('Config sheet: ' + (configSheet ? 'found' : 'MISSING'));
+  console.log('Stored PWD:   ' + (expectedPw || 'NOT SET'));
+  console.log('Correct hash: ' + (correctHash || 'N/A'));
+  debugLog('Config sheet: ' + (configSheet ? 'found' : 'MISSING'));
+  debugLog('Stored PWD:   ' + (expectedPw || 'NOT SET'));
+
+  // ── Test 1: GET request with correct password hash ──
+  debugLog('── Test 1: GET correct hash ──');
+  const getEvt = { parameter: { pwHash: correctHash } };
+  assert('GET correct hash', verifyPassword(getEvt, null), true);
+
+  // ── Test 2: POST request with correct password hash ──
+  debugLog('── Test 2: POST correct hash ──');
+  const postBody = { passwordHash: correctHash };
+  assert('POST correct hash', verifyPassword(null, postBody), true);
+
+  // ── Test 3: GET request with wrong password hash ──
+  debugLog('── Test 3: GET wrong hash ──');
+  const wrongHash = sha256hex('WRONG_PASSWORD');
+  const getWrongEvt = { parameter: { pwHash: wrongHash } };
+  assert('GET wrong hash', verifyPassword(getWrongEvt, null), false);
+
+  // ── Test 4: POST request with wrong password hash ──
+  debugLog('── Test 4: POST wrong hash ──');
+  const postWrong = { passwordHash: wrongHash };
+  assert('POST wrong hash', verifyPassword(null, postWrong), false);
+
+  // ── Test 5: GET request with no password hash ──
+  debugLog('── Test 5: GET no hash ──');
+  assert('GET missing hash', verifyPassword({ parameter: {} }, null), false);
+
+  // ── Test 6: POST request with no password hash ──
+  debugLog('── Test 6: POST no hash ──');
+  assert('POST missing hash', verifyPassword(null, {}), false);
+
+  // ── Test 7: GET request with empty event ──
+  debugLog('── Test 7: GET null event ──');
+  assert('GET null event', verifyPassword(null, null), false);
+
+  // ── Test 8: POST with Telegram webhook-like payload (no hash) ──
+  debugLog('── Test 8: POST Telegram webhook payload ──');
+  const tgPayload = { message: { from: { id: 123 }, chat: { id: 123 } } };
+  assert('POST Telegram webhook (no hash)', verifyPassword(null, tgPayload), false);
+
+  // ── Summary ──
+  const total = passed + failed;
+  const summary = `${passed}/${total} tests passed (${failed} failed)`;
+  console.log('');
+  console.log('====================');
+  console.log(`RESULT: ${summary}`);
+  console.log('====================');
+  debugLog('');
+  debugLog(`=== RESULT: ${summary} ===`);
+
+  return summary;
+}
+
 function getRandomThought() {
     const sheet = SpreadsheetApp.getActive().getSheetByName(THOUGHTS_SHEET)
     const lastRow = sheet.getLastRow()
