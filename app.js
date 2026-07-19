@@ -1,20 +1,32 @@
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
+
+  // Compress image via canvas resize + JPEG quality
+  // Returns a base64 DataURL
+  const compressImage = (file, maxWidth = 1920, quality = 0.7) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
   // Tab components
   const InputTab = ({ msg, setMsg, send, loading, loadingLabel, selectedFile,
   setSelectedFile, imagePreview, setImagePreview, categories, selectedCategory,
-  setSelectedCategory }) => {
-    const handleFileChange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        setSelectedFile(file);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setImagePreview(reader.result);
-        };
-        reader.readAsDataURL(file);
-      }
-    };
+  setSelectedCategory, takePhoto, toggleCamera, cameraFacing, handleFileChange,
+  fileInputRef }) => {
 
     const handleClearFile = () => {
       setSelectedFile(null);
@@ -65,20 +77,56 @@ const { useState, useEffect } = React;
         {/* Attach Image field */}
         <div>
           <label className="block text-sm font-1 font-medium mb-1">Attach Image</label>
-          <div className="flex items-center space-x-2">
-            <label className="cursor-pointer bg-gray-100 hover:bg-gray-200
+          <div className="flex items-center space-x-2 flex-wrap">
+            {/* File picker (gallery) */}
+            <button
+              type="button"
+              className="cursor-pointer bg-gray-100 hover:bg-gray-200
   dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium py-2 px-4 rounded border
-  dark:border-gray-600 transition flex items-center space-x-1">
-              <span>📷 Choose Image</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </label>
+  dark:border-gray-600 transition flex items-center space-x-1"
+              onClick={() => fileInputRef?.current?.click()}
+            >
+              <span>📁 Photos</span>
+            </button>
+
+            {/* Camera capture button */}
+            <button
+              type="button"
+              className="cursor-pointer bg-indigo-100 hover:bg-indigo-200
+  dark:bg-indigo-900/50 dark:hover:bg-indigo-800/50
+  text-indigo-700 dark:text-indigo-300
+  text-sm font-medium py-2 px-4 rounded border
+  border-indigo-300 dark:border-indigo-700
+  transition flex items-center space-x-1"
+              onClick={takePhoto}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89A4 4 0 0110.89 5.5
+                    H13a4 4 0 014 4v.5h2a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8z" />
+                <circle cx="12" cy="13" r="2" />
+              </svg>
+              <span>{cameraFacing === 'environment' ? '📷 Rear' : '🤳 Front'}</span>
+            </button>
+
+            {/* Camera toggle button */}
+            <button
+              type="button"
+              className="cursor-pointer bg-gray-100 hover:bg-gray-200
+  dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium py-2 px-3 rounded border
+  dark:border-gray-600 transition flex items-center space-x-1"
+              onClick={toggleCamera}
+              title="Switch front/rear camera"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581
+                    m-15.357-2a8.003 8.003 0 0015.357-2m0 0H15" />
+              </svg>
+            </button>
+
             {selectedFile && (
-              <span className="text-xs text-gray-500 truncate max-w-[150px]">
+              <span className="text-xs text-gray-500 truncate max-w-[100px]">
                 {selectedFile.name}
               </span>
             )}
@@ -368,6 +416,65 @@ const { useState, useEffect } = React;
     // File upload state
     const [selectedFile, setSelectedFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
+
+    // Camera capture state
+    const cameraRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' = rear, 'user' = front
+
+    // Toggle between front and rear camera
+    const toggleCamera = () => {
+      setCameraFacing(prev => prev === 'environment' ? 'user' : 'environment');
+    };
+
+    // Trigger camera capture
+    const takePhoto = () => {
+      cameraRef.current?.click();
+    };
+
+    // Handle camera photo capture with compression
+    const handleCameraCapture = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        addLog('Compressing photo...', 'info');
+        setLoading(true);
+        setLoadingLabel('Compressing');
+        try {
+          const compressed = await compressImage(file);
+          setImagePreview(compressed);
+          setSelectedFile(file);
+          addLog('Photo compressed and ready!', 'success');
+        } catch (err) {
+          addLog('Compression failed: ' + err.message, 'error');
+        } finally {
+          setLoading(false);
+          setLoadingLabel('');
+        }
+      }
+      e.target.value = '';
+    };
+
+    // Handle gallery file picker with compression
+    const handleFileChange = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        addLog('Compressing image...', 'info');
+        setLoading(true);
+        setLoadingLabel('Compressing');
+        try {
+          const compressed = await compressImage(file);
+          setImagePreview(compressed);
+          setSelectedFile(file);
+          addLog('Image compressed and ready!', 'success');
+        } catch (err) {
+          addLog('Compression failed: ' + err.message, 'error');
+        } finally {
+          setLoading(false);
+          setLoadingLabel('');
+        }
+      }
+      e.target.value = '';
+    };
 
     // Categories list state
     const [categories, setCategories] = useState([]);
@@ -718,6 +825,11 @@ const { useState, useEffect } = React;
               categories={categories}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
+              takePhoto={takePhoto}
+              toggleCamera={toggleCamera}
+              cameraFacing={cameraFacing}
+              handleFileChange={handleFileChange}
+              fileInputRef={fileInputRef}
             />
           )}
           {tab === 'categories' && (
@@ -731,6 +843,25 @@ const { useState, useEffect } = React;
           )}
           {tab === 'log' && <LogTab logs={logs} testGPS={testGPS} loading={loading} loadingLabel={loadingLabel} />}
         </div >
+
+        {/* Hidden file inputs (controlled by buttons in InputTab) */}
+        {/* Gallery picker */}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+        />
+        {/* Camera capture */}
+        <input
+          type="file"
+          accept="image/*"
+          capture={cameraFacing}
+          className="hidden"
+          ref={cameraRef}
+          onChange={handleCameraCapture}
+        />
       </div >
     );
   }
