@@ -1,5 +1,13 @@
 const { useState, useEffect, useRef } = React;
 
+  // SHA-256 hash function (client-side, never sends plaintext)
+  const sha256 = async (message) => {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
   // Compress image via canvas resize + JPEG quality
   // Returns a base64 DataURL
   const compressImage = (file, maxWidth = 1920, quality = 0.7) => {
@@ -46,7 +54,7 @@ const { useState, useEffect, useRef } = React;
           >
             <option value="">None</option>
             {categories.map(c => (
-              <option key={c.value} value={c.name}>{c.name}</option>
+              <option key={c.value} value={c.value}>{c.name}</option>
             ))}
           </select>
         </div>
@@ -353,57 +361,101 @@ const { useState, useEffect, useRef } = React;
   );
 
   // Settings tab component
-  const SettingsTab = ({ url, setUrl, cid, setCid, saveUrl, saveCid, loading,
-  loadingLabel }) => (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-1">Webhook URL</label>
-        <input
-          id="url"
-          type="text"
-          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2
+  const SettingsTab = ({ url, setUrl, cid, setCid, saveUrl, saveCid, password, setPassword,
+  savePassword, addLog, loading, loadingLabel }) => {
+    const [pwInput, setPwInput] = useState('');
+
+    const handleSavePassword = async () => {
+      if (!pwInput.trim()) {
+        addLog('Password cannot be empty.', 'error');
+        return;
+      }
+      const hashed = await sha256(pwInput);
+      localStorage.setItem('tg_pwhash', hashed);
+      setPassword(hashed);
+      setPwInput('');
+      addLog('Password hash saved locally.', 'success');
+    };
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Webhook URL</label>
+          <input
+            id="url"
+            type="text"
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2
   focus:ring-indigo-600 bg-white dark:bg-gray-800"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder="https://example.com/webhook"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Chat ID</label>
-        <input
-          id="cid"
-          type="text"
-          className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="https://example.com/webhook"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Chat ID</label>
+          <input
+            id="cid"
+            type="text"
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2
   focus:ring-indigo-600 bg-white dark:bg-gray-800"
-          value={cid}
-          onChange={e => setCid(e.target.value)}
-          placeholder="123456789"
-        />
-      </div>
-      <div className="flex justify-end">
-        <button
-          className="bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700
+            value={cid}
+            onChange={e => setCid(e.target.value)}
+            placeholder="123456789"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Password</label>
+          <div className="flex space-x-2">
+            <input
+              type="password"
+              className="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2
+  focus:ring-indigo-600 bg-white dark:bg-gray-800"
+              value={pwInput}
+              onChange={e => setPwInput(e.target.value)}
+              placeholder="Enter password"
+            />
+            <button
+              type="button"
+              className="bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700
+  transition text-sm whitespace-nowrap"
+              onClick={handleSavePassword}
+            >
+              Save
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Hashed client-side via SHA-256. Plaintext never leaves your device.
+          </p>
+          {password && (
+            <p className="text-xs text-green-600 mt-1">✓ Password hash stored locally</p>
+          )}
+        </div>
+        <div className="flex justify-end">
+          <button
+            className="bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700
   transition flex items-center"
-          onClick={() => { saveUrl(url); saveCid(cid); }}
-          disabled={loading}
-        >
-          {loading && loadingLabel === 'Saving' && (
-            <svg className="animate-spin h-4 w-4 mr-2 text-white"
+            onClick={() => { saveUrl(url); saveCid(cid); }}
+            disabled={loading}
+          >
+            {loading && loadingLabel === 'Saving' && (
+              <svg className="animate-spin h-4 w-4 mr-2 text-white"
   xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle
   className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
   strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0
   018-8v4a4 4 0 00-4 4H4z"/></svg>
-          )}
-          Save
-        </button>
+            )}
+            Save URL & Chat ID
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   function App() {
     // Core state
     const [url, setUrl] = useState(localStorage.getItem('tg_url') || '');
     const [cid, setCid] = useState(localStorage.getItem('tg_cid') || '');
+    const [password, setPassword] = useState(localStorage.getItem('tg_pwhash') || '');
     const [msg, setMsg] = useState('Hello from iPhone mobile hardware!');
     const [logs, setLogs] = useState([]);
     const [dark, setDark] = useState(false);
@@ -519,6 +571,11 @@ const { useState, useEffect, useRef } = React;
       addLog('Chat ID saved.', 'success');
     };
 
+    const savePassword = val => {
+      // Password hash is saved directly via localStorage in SettingsTab
+      setPassword(val);
+    };
+
     // Shared helper to acquire a single position (returns a Promise)
     const getCurrentPos = () => new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -546,7 +603,7 @@ const { useState, useEffect, useRef } = React;
         return;
       }
 
-      const params = new URLSearchParams({ endpoint: 'getCategories', chatId: cid });
+      const params = new URLSearchParams({ endpoint: 'getCategories', chatId: cid, pwHash: password });
       const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}${params.toString()}`;
       try {
         const response = await fetch(fetchUrl);
@@ -585,6 +642,7 @@ const { useState, useEffect, useRef } = React;
           body: JSON.stringify({
             endpoint: 'createCategory',
             chatId: cid,
+            passwordHash: password,
             name: cat.name,
             value: cat.value,
             desc: cat.desc,
@@ -624,6 +682,7 @@ const { useState, useEffect, useRef } = React;
           body: JSON.stringify({
             endpoint: 'updateCategory',
             chatId: cid,
+            passwordHash: password,
             originalValue: origVal,
             name: cat.name,
             value: cat.value,
@@ -646,12 +705,12 @@ const { useState, useEffect, useRef } = React;
       }
     };
 
-    // Fetch categories list on tab enter or when parameters change
+    // Fetch categories list on tab enter only (avoid re-fetching on every settings keystroke)
     useEffect(() => {
       if ((tab === 'categories' || tab === 'input') && url && cid) {
         fetchCategories();
       }
-    }, [tab, url, cid]);
+    }, [tab]);
 
     // GPS test (used from Input tab)
     const testGPS = async () => {
@@ -670,12 +729,11 @@ const { useState, useEffect, useRef } = React;
     };
 
     // Send message with optional GPS location and optional image
-    // Send message with optional GPS location and optional image
     const send = async () => {
       setLoading(true);
       setLoadingLabel('Sending');
-      const target = url || (document.getElementById('url') ? document.getElementById('url').value.trim() : '');
-      const chatId = cid || (document.getElementById('cid') ? document.getElementById('cid').value.trim() : '');
+      const target = url;
+      const chatId = cid;
       if (!target || !chatId) {
         addLog('Aborted: Check configuration fields.', 'error');
         setLoading(false);
@@ -695,8 +753,8 @@ const { useState, useEffect, useRef } = React;
         const txt = msg;
 
         // Pass coordinates and category as separate objects to match structured schema
-        post(target, chatId, txt, photoData, photoName, { 
-          latitude: lat, 
+        post(target, chatId, txt, photoData, photoName, {
+          latitude: lat,
           longitude: lon,
           category: selectedCategory || null
         });
@@ -712,6 +770,8 @@ const { useState, useEffect, useRef } = React;
       } finally {
         setLoading(false);
         setLoadingLabel('');
+        setSelectedFile(null);
+        setImagePreview(null);
       }
     };
 
@@ -719,6 +779,7 @@ const { useState, useEffect, useRef } = React;
     const post = (target, chatId, txt, photoData = null, photoName = null, metadata = null) => {
       addLog('Transmitting asynchronous data dispatch...', 'info');
       const bodyObj = {
+        passwordHash: password,
         message: {
           text: txt,
           chat: { id: Number(chatId) }
@@ -752,8 +813,6 @@ const { useState, useEffect, useRef } = React;
       })
         .then(() => {
           addLog('Phase complete: Transmission accepted!', 'success');
-          setSelectedFile(null);
-          setImagePreview(null);
         })
         .catch(err => addLog('Network error: ' + err.message, 'error'));
     };
@@ -814,7 +873,7 @@ const { useState, useEffect, useRef } = React;
 
         {/* Content area */}
         <div className="pt-2">
-          {tab === 'settings' && <SettingsTab url={url} setUrl={setUrl} cid={cid} setCid={setCid} saveUrl={saveUrl} saveCid={saveCid} loading={loading} loadingLabel={loadingLabel} />}
+          {tab === 'settings' && <SettingsTab url={url} setUrl={setUrl} cid={cid} setCid={setCid} saveUrl={saveUrl} saveCid={saveCid} password={password} setPassword={setPassword} savePassword={savePassword} addLog={addLog} loading={loading} loadingLabel={loadingLabel} />}
           {tab === 'input' && (
             <InputTab
               msg={msg}
@@ -856,15 +915,6 @@ const { useState, useEffect, useRef } = React;
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileChange}
-        />
-        {/* Camera capture */}
-        <input
-          type="file"
-          accept="image/*"
-          capture={cameraFacing}
-          className="hidden"
-          ref={cameraRef}
-          onChange={handleCameraCapture}
         />
       </div >
     );

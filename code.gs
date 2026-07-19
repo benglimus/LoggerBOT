@@ -112,15 +112,26 @@ const BASE_URL = "https://api.telegram.org/bot" + TOKEN + "/"
 
 function doGet(e) {
   const endpoint = (e && e.parameter && e.parameter.endpoint);
-  
+
   if (endpoint === "getCategories") {
-    if (!checkAuthorization(e, null)) {
+    if (!checkAuthorization(e, null) || !verifyPassword(e, null)) {
       return createJsonResponse({ status: "error", message: "Unauthorized request" });
     }
     return handleGetCategories();
   }
 
-  const name = getMe().result.first_name
+  const cachedName = PropertiesService.getScriptProperties().getProperty('BOT_NAME');
+  const name = cachedName || 'LoggerBOT';
+  if (!cachedName) {
+    try {
+      const meResult = getMe().result;
+      if (meResult.first_name) {
+        PropertiesService.getScriptProperties().setProperty('BOT_NAME', meResult.first_name);
+      }
+    } catch (e) {
+      // fallback to default name
+    }
+  }
   const output = `Hello, my name is ${name}`
   return ContentService.createTextOutput(output)
 }
@@ -138,24 +149,36 @@ function doPost(e) {
   // Route by query param (?endpoint=...) OR body param (data.endpoint) OR default to "log"
   const endpoint = (e && e.parameter && e.parameter.endpoint) || data.endpoint || "log";
 
-  // Check authorization for custom endpoint requests
-  if (endpoint !== "log") {
-    if (!checkAuthorization(e, data)) {
-      return createJsonResponse({ status: "error", message: "Unauthorized request" });
-    }
-  }
-
   switch (endpoint) {
     case "log":
+      // Telegram webhooks have data.message.from — bypass password check
+      const isTelegramWebhook = data.message && data.message.from;
+      if (!isTelegramWebhook) {
+        if (!verifyPassword(e, data)) {
+          return createJsonResponse({ status: "error", message: "Unauthorized: invalid or missing password" });
+        }
+      }
       return handleLog(data);
     case "getCategories":
+      if (!checkAuthorization(e, data) || !verifyPassword(e, data)) {
+        return createJsonResponse({ status: "error", message: "Unauthorized request" });
+      }
       return handleGetCategories();
     case "createCategory":
+      if (!checkAuthorization(e, data) || !verifyPassword(e, data)) {
+        return createJsonResponse({ status: "error", message: "Unauthorized request" });
+      }
       return handleCreateCategory(data);
     case "updateCategory":
+      if (!checkAuthorization(e, data) || !verifyPassword(e, data)) {
+        return createJsonResponse({ status: "error", message: "Unauthorized request" });
+      }
       return handleUpdateCategory(data);
     case "deleteCategory":
-      return handleDeleteCategory(data); // Will perform soft-delete
+      if (!checkAuthorization(e, data) || !verifyPassword(e, data)) {
+        return createJsonResponse({ status: "error", message: "Unauthorized request" });
+      }
+      return handleDeleteCategory(data);
     default:
       return ContentService.createTextOutput(JSON.stringify({
         status: "error",
@@ -169,14 +192,37 @@ function checkAuthorization(e, data) {
   const authorizedId = getConfig("AUTHORIZED_CHAT_ID");
   if (!authorizedId) {
     // If not configured in BOT sheet, allow access to prevent locking out
-    return true; 
+    return true;
   }
-  
-  const incomingChatId = (e && e.parameter && e.parameter.chatId) || 
-                         (data && data.chatId) || 
+
+  const incomingChatId = (e && e.parameter && e.parameter.chatId) ||
+                         (data && data.chatId) ||
                          (data && data.message && data.message.chat && data.message.chat.id);
-                         
+
   return String(incomingChatId) === String(authorizedId);
+}
+
+// Password-based authentication for web app requests
+// GET: reads pwHash from query params, POST: reads passwordHash from body
+function verifyPassword(e, data) {
+  const pwHash = (e && e.parameter && e.parameter.pwHash) ||
+                 (data && data.passwordHash);
+  if (!pwHash) return false;
+
+  // Read stored hash from Config sheet
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Config');
+  if (!sheet) return false;
+  const values = sheet.getDataRange().getValues();
+  let storedHash = null;
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]) === 'PWD') {
+      storedHash = String(values[i][1]);
+      break;
+    }
+  }
+
+  if (!storedHash) return false;
+  return pwHash === storedHash;
 }
 
 // READ: Get all categories
@@ -515,13 +561,16 @@ function generateNote(
   let strTags = ""
   let strBody = ""
 
+  let arrNew = []
+  let arrOld = []
+
   if (strNewText.startsWith("#")) {
-    const arrNew = extractHashtags(strNewText)
+    arrNew = extractHashtags(strNewText)
     strTextReceived = findAndReturnAfterNewline(strNewText)
   }
 
   if (strOldText.startsWith("#")) {
-    const arrOld = extractHashtags(strOldText)
+    arrOld = extractHashtags(strOldText)
     strTextExisting = findAndReturnAfterNewline(strOldText)
   }
 

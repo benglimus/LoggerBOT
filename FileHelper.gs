@@ -9,55 +9,9 @@
 
 // }
 
-// Works for files uploaded directly to Google Drive but not for telegrambot generated files (no extension)
-function getFullFolderPathWithFilenameAndExtension(fileId) {
-  // Initialize an array to store the folder names in the path
-  var folderNames = [];
-  
-  // Start with the given file ID
-  var file = DriveApp.getFileById(fileId);
-  
-  // Split the file name by periods to extract the extension
-  var fileNameParts = file.getName().split('.');
-  console.log(file.getName())
-  
-  // Extract the file extension (last part of the split)
-  var fileExtension = fileNameParts.pop();
-
-  // Add the remaining parts as the filename (including periods) to the array
-  var fileName = fileNameParts.join('.');
-  folderNames.push(fileName);
-
-  // Get the parent folder of the file (if it exists)
-  try {
-    var folder = file.getParents().next();
-    
-    while (folder) {
-      // Add the folder's name to the array
-      folderNames.push(folder.getName());
-      
-      // Move up to the parent folder
-      var parent = folder.getParents().next();
-      
-      // If there's no parent folder, set folder to null to exit the loop
-      if (!parent) {
-        folder = null;
-      } else {
-        folder = parent;
-      }
-    }
-  } catch (e) {
-    // Handle the case where there are no parent folders (e.g., file is in My Drive)
-  }
-  
-  // Reverse the array to get the correct path order
-  folderNames.reverse();
-  
-  // Join the folder names with backslashes and add the file extension to form the full path
-  var fullPath = folderNames.join("\\") + '.' + fileExtension;
-  
-  return fullPath;
-}
+// DEPRECATED: getFullFolderPathWithFilenameAndExtension — moved to ARCHIVE/
+// Calls DriveApp.getFileById() which triggers OAuth scope errors for Telegram-bot files (missing extensions).
+// Do not invoke. See ARCHIVE/FileHelper.gs for the original implementation.
 
 
 function AppendToFile(folderPath, fileName, content) {
