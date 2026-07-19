@@ -204,25 +204,30 @@ function checkAuthorization(e, data) {
 
 // Password-based authentication for web app requests
 // GET: reads pwHash from query params, POST: reads passwordHash from body
+// Config sheet stores plaintext password — we hash it server-side for comparison
 function verifyPassword(e, data) {
   const pwHash = (e && e.parameter && e.parameter.pwHash) ||
                  (data && data.passwordHash);
   if (!pwHash) return false;
 
-  // Read stored hash from Config sheet
+  // Read stored plaintext password from Config sheet
   const sheet = SpreadsheetApp.getActive().getSheetByName('Config');
   if (!sheet) return false;
   const values = sheet.getDataRange().getValues();
-  let storedHash = null;
+  let storedPw = null;
   for (let i = 0; i < values.length; i++) {
     if (String(values[i][0]) === 'PWD') {
-      storedHash = String(values[i][1]);
+      storedPw = String(values[i][1]);
       break;
     }
   }
 
-  if (!storedHash) return false;
-  return pwHash === storedHash;
+  if (!storedPw) return false;
+
+  // Hash the stored plaintext password (SHA-256) and compare
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, storedPw);
+  const serverHash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return pwHash === serverHash;
 }
 
 // READ: Get all categories
