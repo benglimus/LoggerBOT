@@ -1,0 +1,13 @@
+{
+     "message": {
+          "category": "Journal",
+          "text": "Hello",
+          "chat": {
+               "id": 235221921
+          },
+          "location": {
+               "latitude": 1.3799005393908135,
+               "longitude": 103.82781949913434
+          }
+     }
+}
