@@ -89,7 +89,7 @@ const { useState, useEffect, useRef } = React;
               <span>📁 Photos</span>
             </button>
 
-            {/* Camera capture button */}
+            {/* Camera capture button
             <button
               type="button"
               className="cursor-pointer bg-indigo-100 hover:bg-indigo-200
@@ -107,10 +107,10 @@ const { useState, useEffect, useRef } = React;
                 <circle cx="12" cy="13" r="2" />
               </svg>
               <span>{cameraFacing === 'environment' ? '📷 Rear' : '🤳 Front'}</span>
-            </button>
+            </button> */}
 
             {/* Camera toggle button */}
-            <button
+            {/* <button
               type="button"
               className="cursor-pointer bg-gray-100 hover:bg-gray-200
   dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium py-2 px-3 rounded border
@@ -123,7 +123,7 @@ const { useState, useEffect, useRef } = React;
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581
                     m-15.357-2a8.003 8.003 0 0015.357-2m0 0H15" />
               </svg>
-            </button>
+            </button> */}
 
             {selectedFile && (
               <span className="text-xs text-gray-500 truncate max-w-[100px]">
