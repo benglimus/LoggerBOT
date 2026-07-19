@@ -1,8 +1,9 @@
-# Ignore local Google Apps Script file
-code.gs
-
-# Ignore system/temporary files
+# System files
 .DS_Store
-picture_upload_plan.md
-enable_picture_upload_plan.md
+
+# Secrets
 .env
+
+# Files by extension
+*.gs
+*.md
