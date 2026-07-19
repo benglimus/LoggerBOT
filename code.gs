@@ -16,6 +16,26 @@ function showDebug(strMessage) {
     .setValue(strMessage)
 }
 
+// Append a timestamped debug line to the DEBUG_SHEET (next empty row, column 1)
+function debugLog(strMessage) {
+  try {
+    const sheet = SpreadsheetApp.getActive().getSheetByName(DEBUG_SHEET);
+    if (!sheet) return; // sheet missing, fail silently
+    sheet.appendRow([new Date(), strMessage]);
+  } catch (err) {
+    // logging itself must not break the handler
+  }
+}
+
+// Clear the debug sheet (keeps header row, clears rows 2+)
+function clearDebug() {
+  try {
+    const sheet = SpreadsheetApp.getActive().getSheetByName(DEBUG_SHEET);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn() || 1).clear();
+  } catch (err) {}
+}
+
 function TEST_getRandomThought() {
   console.log(getRandomThought())
 }
@@ -206,28 +226,43 @@ function checkAuthorization(e, data) {
 // GET: reads pwHash from query params, POST: reads passwordHash from body
 // Config sheet stores plaintext password — we hash it server-side for comparison
 function verifyPassword(e, data) {
+  const timestamp = new Date().toISOString();
+  const requestSource = (e && e.parameter && e.parameter.pwHash) ? "GET" : "POST";
+  debugLog(`[verifyPassword] START (${timestamp}) source=${requestSource}`);
+
   const pwHash = (e && e.parameter && e.parameter.pwHash) ||
                  (data && data.passwordHash);
+  debugLog(`[verifyPassword] pwHash received: ${pwHash ? pwHash.substring(0, 10) + '...' : 'NULL'} (source=${requestSource})`);
   if (!pwHash) return false;
+  debugLog('[verifyPassword] FAIL — pwHash is missing/empty');
 
   // Read stored plaintext password from Config sheet
   const sheet = SpreadsheetApp.getActive().getSheetByName('Config');
+  debugLog(`[verifyPassword] Config sheet found: ${sheet ? 'YES' : 'NO'}`);
   if (!sheet) return false;
+  debugLog('[verifyPassword] FAIL — Config sheet not found');
   const values = sheet.getDataRange().getValues();
+  debugLog(`[verifyPassword] Config sheet total rows: ${values.length}`);
   let storedPw = null;
   for (let i = 0; i < values.length; i++) {
+    debugLog(`[verifyPassword] row[${i}] key="${String(values[i][0])}", value="${String(values[i][1] || '')}"`);
     if (String(values[i][0]) === 'PWD') {
       storedPw = String(values[i][1]);
       break;
     }
   }
+  debugLog(`[verifyPassword] storedPw resolved: ${storedPw ? 'FOUND (' + storedPw.length + ' chars)' : 'NULL'}`);
 
   if (!storedPw) return false;
+  debugLog('[verifyPassword] FAIL — PWD not found in Config');
 
   // Hash the stored plaintext password (SHA-256) and compare
   const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, storedPw);
   const serverHash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return pwHash === serverHash;
+  debugLog(`[verifyPassword] serverHash computed: ${serverHash.substring(0, 16)}... (length=${serverHash.length})`);
+  const matches = pwHash === serverHash;
+  debugLog(`[verifyPassword] pwHash === serverHash ? ${matches} (received="${pwHash.substring(0, 16)}...", computed="${serverHash.substring(0, 16)}...")`);
+  return matches;
 }
 
 // READ: Get all categories
